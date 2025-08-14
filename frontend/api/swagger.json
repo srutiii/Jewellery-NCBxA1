@@ -1,0 +1,524 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Jewellery Customer API",
+    "description": "API for managing customer data for a jewellery store",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/customers": {
+      "get": {
+        "summary": "Get all customers",
+        "description": "Returns a list of all customers",
+        "responses": {
+          "200": {
+            "description": "A list of customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Customer"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new customer",
+        "description": "Creates a new customer with the provided data",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Customer ID",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Get a specific customer",
+        "description": "Returns a specific customer by ID",
+        "responses": {
+          "200": {
+            "description": "Customer found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a customer",
+        "description": "Updates a specific customer by ID",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a customer",
+        "description": "Deletes a specific customer by ID",
+        "responses": {
+          "204": {
+            "description": "Customer deleted successfully"
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GemstoneDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of gemstone"
+          },
+          "carat": {
+            "type": "number",
+            "description": "Carat weight of the gemstone"
+          },
+          "color": {
+            "type": "string",
+            "description": "Color of the gemstone"
+          },
+          "clarity": {
+            "type": "string",
+            "description": "Clarity of the gemstone"
+          },
+          "cut": {
+            "type": "string",
+            "description": "Cut of the gemstone"
+          }
+        }
+      },
+      "DiscountApplied": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of discount"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Discount amount"
+          },
+          "percentage": {
+            "type": "number",
+            "description": "Discount percentage"
+          }
+        }
+      },
+      "PurchaseHistoryItem": {
+        "type": "object",
+        "properties": {
+          "purchase_id": {
+            "type": "string",
+            "description": "Unique identifier for the purchase (auto-generated)"
+          },
+          "purchase_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of purchase (ISO date)"
+          },
+          "item_description": {
+            "type": "string",
+            "description": "Description of the purchased item"
+          },
+          "item_category": {
+            "type": "string",
+            "description": "Category of the purchased item"
+          },
+          "item_type": {
+            "type": "string",
+            "description": "Type of the purchased item"
+          },
+          "price": {
+            "type": "number",
+            "description": "Price of the purchased item"
+          },
+          "weight": {
+            "type": "string",
+            "description": "Weight of the purchased item"
+          },
+          "metal_type": {
+            "type": "string",
+            "description": "Type of metal used in the item"
+          },
+          "metal_purity": {
+            "type": "string",
+            "description": "Purity of the metal used in the item"
+          },
+          "gemstone_details": {
+            "$ref": "#/components/schemas/GemstoneDetails",
+            "description": "Details of the gemstone in the item"
+          },
+          "discount_applied": {
+            "$ref": "#/components/schemas/DiscountApplied",
+            "description": "Discount applied to the purchase"
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "Method of payment used"
+          },
+          "sales_person": {
+            "type": "string",
+            "description": "Name of the sales person who handled the sale"
+          }
+        }
+      },
+      "CustomerInput": {
+        "type": "object",
+        "required": ["full_name", "contact_number", "occasion_for_purchase"],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "description": "Customer's full name (required)"
+          },
+          "contact_number": {
+            "type": "string",
+            "description": "Customer's contact number (required)"
+          },
+          "email_address": {
+            "type": "string",
+            "format": "email",
+            "description": "Customer's email address (optional)"
+          },
+          "address": {
+            "type": "string",
+            "description": "Customer's address (optional)"
+          },
+          "community": {
+            "type": "string",
+            "description": "Customer's community (optional)"
+          },
+          "sub_community": {
+            "type": "string",
+            "description": "Customer's sub-community (optional)"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "Customer's date of birth (optional)"
+          },
+          "anniversary_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Customer's anniversary date (optional)"
+          },
+          "gender": {
+            "type": "string",
+            "description": "Customer's gender (optional)",
+            "enum": ["male", "female", "other", "Male", "Female", "Other"]
+          },
+          "marital_status": {
+            "type": "string",
+            "description": "Customer's marital status (optional)",
+            "enum": ["single", "married", "divorced", "widowed", "Single", "Married", "Divorced", "Widowed"]
+          },
+          "location": {
+            "type": "string",
+            "description": "Customer's location (optional)"
+          },
+          "purchase_history": {
+            "type": "array",
+            "description": "Customer's purchase history (optional)",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseHistoryItem"
+            }
+          },
+          "occasion_for_purchase": {
+            "type": "string",
+            "description": "Occasion for purchase (required)"
+          },
+          "gift_recipient_relationship": {
+            "type": "string",
+            "description": "Relationship with the gift recipient (optional)"
+          },
+          "items_shown_or_discussed": {
+            "type": "string",
+            "description": "Items shown or discussed with the customer (optional)"
+          },
+          "expressed_interest_or_intent": {
+            "type": "string",
+            "description": "Customer's expressed interest or intent (optional)"
+          },
+          "in_store_query": {
+            "type": "string",
+            "description": "Customer's in-store query (optional)"
+          },
+          "budget_mentioned": {
+            "type": "string",
+            "description": "Budget mentioned by the customer (optional)"
+          },
+          "frequency_of_visit": {
+            "type": "string",
+            "description": "Frequency of customer's visits (optional)"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Legacy field: Customer's phone number (for backward compatibility)"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Legacy field: Customer's email (for backward compatibility)"
+          },
+          "city": {
+            "type": "string",
+            "description": "Legacy field: Customer's city (for backward compatibility)"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "description": "Legacy field: Customer's date of birth (for backward compatibility)"
+          },
+          "occasion": {
+            "type": "string",
+            "description": "Legacy field: Occasion (for backward compatibility)"
+          },
+          "budget": {
+            "type": "string",
+            "description": "Legacy field: Budget (for backward compatibility)"
+          },
+          "diamond_shape": {
+            "type": "string",
+            "description": "Legacy field: Preferred diamond shape (for backward compatibility)"
+          },
+          "first_visit": {
+            "type": "string",
+            "format": "date",
+            "description": "Legacy field: Date of first visit (for backward compatibility)"
+          },
+          "lead_source": {
+            "type": "string",
+            "description": "Legacy field: Source of the lead (for backward compatibility)"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Legacy field: Additional notes (for backward compatibility)"
+          }
+        }
+      },
+      "Customer": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CustomerInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the customer (auto-generated)"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the customer was created (auto-generated)"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the customer was last updated (auto-generated)"
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error type"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field with validation error"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Validation error message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
