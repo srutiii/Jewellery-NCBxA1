@@ -33,6 +33,18 @@ const customerController = {
   // Create a new customer
   createCustomer: (req, res) => {
     try {
+      const { email_address, email } = req.body;
+      const emailToCheck = email_address || email;
+      
+      // Check if email already exists
+      if (emailToCheck && Customer.emailExists(emailToCheck)) {
+        return res.status(400).json({ 
+          error: 'Email address already exists',
+          field: 'email_address',
+          message: 'A customer with this email address already exists. Please use a different email or leave it empty.'
+        });
+      }
+      
       const newCustomer = new Customer(req.body);
       const savedCustomer = newCustomer.save();
       
@@ -55,6 +67,18 @@ const customerController = {
       
       if (!existingCustomer) {
         return res.status(404).json({ error: 'Customer not found' });
+      }
+      
+      const { email_address, email } = req.body;
+      const emailToCheck = email_address || email;
+      
+      // Check if email already exists (excluding current customer)
+      if (emailToCheck && Customer.emailExists(emailToCheck, id)) {
+        return res.status(400).json({ 
+          error: 'Email address already exists',
+          field: 'email_address',
+          message: 'A customer with this email address already exists. Please use a different email or leave it empty.'
+        });
       }
       
       // Merge existing customer with updates

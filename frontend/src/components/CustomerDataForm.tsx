@@ -2,11 +2,9 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { CalendarIcon, Diamond } from "lucide-react";
+import { Diamond, User, ShoppingBag, Heart, Brain, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
@@ -17,11 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -32,8 +25,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { firebaseService } from "@/services/firebaseService";
+import { firebaseService, FirebaseApiResponse } from "@/services/firebaseService";
 import { transformFormDataToApiData } from "@/utils/dataTransform";
+import { useEmailValidation } from "@/hooks/useEmailValidation";
 
 const formSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
@@ -79,8 +73,18 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+type Section = 'personal' | 'transaction' | 'occasion' | 'business';
+
+const sections: { id: Section; title: string; icon: React.ReactNode; description: string }[] = [
+  { id: 'personal', title: 'Personal Info', icon: <User className="h-5 w-5" />, description: 'Basic customer details' },
+  { id: 'transaction', title: 'Transaction History', icon: <ShoppingBag className="h-5 w-5" />, description: 'Purchase details' },
+  { id: 'occasion', title: 'Occasion & Relationship', icon: <Heart className="h-5 w-5" />, description: 'Event and gift info' },
+  { id: 'business', title: 'Business Intelligence', icon: <Brain className="h-5 w-5" />, description: 'Customer insights' },
+];
+
 export const CustomerDataForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentSection, setCurrentSection] = useState<Section>('personal');
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -125,17 +129,45 @@ export const CustomerDataForm = () => {
     },
   });
 
+  // Email validation hook
+  const emailValue = form.watch("email_address");
+  const emailValidation = useEmailValidation(emailValue || "");
+
   const onSubmit = async (data: FormData) => {
+    // Check email validation before submitting
+    if (data.email_address && !emailValidation.isValid) {
+      toast({
+        title: "Email Validation Error",
+        description: emailValidation.error || "Please fix the email address before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
       // Transform form data to API format
-      const apiData = transformFormDataToApiData(data);
+      const apiData = transformFormDataToApiData({
+        ...data,
+        full_name: data.full_name || '',
+        contact_number: data.contact_number || '',
+        occasion_for_purchase: data.occasion_for_purchase || '',
+        discount_applied: data.discount_applied || false,
+      });
       
       // Call Firebase to create customer
-      const response = await firebaseService.createCustomer(apiData);
+      const response: FirebaseApiResponse<any> = await firebaseService.createCustomer(apiData);
       
       if (response.error) {
+        // Handle specific email validation errors
+        if (response.field === 'email_address') {
+          form.setError('email_address', {
+            type: 'manual',
+            message: response.message || response.error,
+          });
+        }
+        
         toast({
           title: "Error",
           description: response.error,
@@ -163,9 +195,27 @@ export const CustomerDataForm = () => {
     }
   };
 
+  const nextSection = () => {
+    const currentIndex = sections.findIndex(s => s.id === currentSection);
+    if (currentIndex < sections.length - 1) {
+      setCurrentSection(sections[currentIndex + 1].id);
+    }
+  };
+
+  const prevSection = () => {
+    const currentIndex = sections.findIndex(s => s.id === currentSection);
+    if (currentIndex > 0) {
+      setCurrentSection(sections[currentIndex - 1].id);
+    }
+  };
+
+  const goToSection = (sectionId: Section) => {
+    setCurrentSection(sectionId);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 p-4 md:p-8">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-8 text-center animate-fade-in-up">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-luxury-gold-dark shadow-elegant border-2 border-primary/20 animate-bounce-in">
             <Diamond className="h-10 w-10 text-primary-foreground animate-pulse" />
@@ -177,19 +227,60 @@ export const CustomerDataForm = () => {
           <div className="mt-4 h-1 w-24 mx-auto bg-gradient-to-r from-primary to-luxury-gold rounded-full"></div>
         </div>
 
+        {/* Section Navigation */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {sections.map((section, index) => (
+              <Button
+                key={section.id}
+                variant={currentSection === section.id ? "default" : "outline"}
+                onClick={() => goToSection(section.id)}
+                className={cn(
+                  "h-auto p-4 flex flex-col items-center gap-2 transition-all duration-300",
+                  currentSection === section.id
+                    ? "bg-gradient-to-r from-primary to-luxury-gold text-primary-foreground shadow-elegant"
+                    : "hover:border-primary/50 hover:shadow-elegant"
+                )}
+              >
+                <div className={cn(
+                  "p-2 rounded-full transition-colors",
+                  currentSection === section.id
+                    ? "bg-primary-foreground/20"
+                    : "bg-primary/10"
+                )}>
+                  {section.icon}
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-sm">{section.title}</div>
+                  <div className="text-xs opacity-80">{section.description}</div>
+                </div>
+                <div className={cn(
+                  "w-2 h-2 rounded-full transition-colors",
+                  currentSection === section.id
+                    ? "bg-primary-foreground"
+                    : "bg-primary/30"
+                )} />
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <Card className="shadow-elegant border border-primary/10 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm animate-scale-in">
           <CardHeader className="space-y-1 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-luxury-gold/5 animate-shimmer"></div>
             <CardTitle className="text-3xl text-center font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent relative z-10">
-              Customer Information
+              {sections.find(s => s.id === currentSection)?.title}
             </CardTitle>
             <CardDescription className="text-center text-lg relative z-10">
-              Please fill in the customer details below
+              {sections.find(s => s.id === currentSection)?.description}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Personal Information Section */}
+                {currentSection === 'personal' && (
+                  <>
                 {/* Full Name */}
                 <FormField
                   control={form.control}
@@ -237,13 +328,39 @@ export const CustomerDataForm = () => {
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
+                            <div className="relative">
                         <Input
                           type="email"
                           placeholder="Enter email address"
                           {...field}
-                          className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant"
-                        />
+                                className={cn(
+                                  "h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant",
+                                  !emailValidation.isValid && emailValue && "border-red-500 focus:border-red-500 focus:ring-red-200",
+                                  emailValidation.isValid && emailValue && "border-green-500 focus:border-green-500 focus:ring-green-200"
+                                )}
+                              />
+                              {emailValidation.isChecking && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                </div>
+                              )}
+                              {!emailValidation.isChecking && emailValue && emailValidation.isValid && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                                    <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                       </FormControl>
+                          {emailValidation.error && (
+                            <p className="text-sm text-red-500 mt-1">{emailValidation.error}</p>
+                          )}
+                          {emailValidation.isValid && emailValue && !emailValidation.isChecking && (
+                            <p className="text-sm text-green-500 mt-1">Email address is available</p>
+                          )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -325,10 +442,303 @@ export const CustomerDataForm = () => {
                   )}
                 />
 
-                {/* Purchase History Section */}
-                <div className="pt-6 border-t border-border/20">
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Purchase History</h3>
-                  
+                    {/* Date of Birth */}
+                    <FormField
+                      control={form.control}
+                      name="date_of_birth"
+                      render={({ field }) => {
+                        const getDaysInMonth = (month: number, year: number) => {
+                          return new Date(year, month, 0).getDate();
+                        };
+
+                        const currentYear = field.value?.getFullYear() || new Date().getFullYear();
+                        const currentMonth = field.value?.getMonth() || 0;
+                        const daysInMonth = getDaysInMonth(currentMonth + 1, currentYear);
+
+                        return (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Date of Birth</FormLabel>
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* Day */}
+                              <Select
+                                value={field.value ? field.value.getDate().toString() : ""}
+                                onValueChange={(value) => {
+                                  const day = parseInt(value);
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setDate(day);
+                                    field.onChange(newDate);
+                                  } else {
+                                    const today = new Date();
+                                    const newDate = new Date(today.getFullYear(), today.getMonth(), day);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Day" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                                  {Array.from({ length: daysInMonth }, (_, i) => (
+                                    <SelectItem key={i + 1} value={(i + 1).toString()} className="focus:bg-primary/10 transition-colors">
+                                      {i + 1}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {/* Month */}
+                              <Select
+                                value={field.value ? (field.value.getMonth() + 1).toString() : ""}
+                                onValueChange={(value) => {
+                                  const month = parseInt(value) - 1;
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setMonth(month);
+                                    // Adjust day if it exceeds the new month's days
+                                    const maxDays = getDaysInMonth(month + 1, newDate.getFullYear());
+                                    if (newDate.getDate() > maxDays) {
+                                      newDate.setDate(maxDays);
+                                    }
+                                    field.onChange(newDate);
+                                  } else {
+                                    const today = new Date();
+                                    const newDate = new Date(today.getFullYear(), month, 1);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Month" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                                  {[
+                                    "January", "February", "March", "April", "May", "June",
+                                    "July", "August", "September", "October", "November", "December"
+                                  ].map((month, index) => (
+                                    <SelectItem key={index + 1} value={(index + 1).toString()} className="focus:bg-primary/10 transition-colors">
+                                      {month}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {/* Year */}
+                              <Select
+                                value={field.value ? field.value.getFullYear().toString() : ""}
+                                onValueChange={(value) => {
+                                  const year = parseInt(value);
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setFullYear(year);
+                                    // Adjust day if it exceeds the new year's month days (for leap year)
+                                    const maxDays = getDaysInMonth(newDate.getMonth() + 1, year);
+                                    if (newDate.getDate() > maxDays) {
+                                      newDate.setDate(maxDays);
+                                    }
+                                    field.onChange(newDate);
+                                  } else {
+                                    const newDate = new Date(year, 0, 1);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in max-h-60">
+                                  {Array.from({ length: 100 }, (_, i) => {
+                                    const year = new Date().getFullYear() - i;
+                                    return (
+                                      <SelectItem key={year} value={year.toString()} className="focus:bg-primary/10 transition-colors">
+                                        {year}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+
+                    {/* Anniversary Date */}
+                    <FormField
+                      control={form.control}
+                      name="anniversary_date"
+                      render={({ field }) => {
+                        const getDaysInMonth = (month: number, year: number) => {
+                          return new Date(year, month, 0).getDate();
+                        };
+
+                        const currentYear = field.value?.getFullYear() || new Date().getFullYear();
+                        const currentMonth = field.value?.getMonth() || 0;
+                        const daysInMonth = getDaysInMonth(currentMonth + 1, currentYear);
+
+                        return (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Anniversary Date</FormLabel>
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* Day */}
+                              <Select
+                                value={field.value ? field.value.getDate().toString() : ""}
+                                onValueChange={(value) => {
+                                  const day = parseInt(value);
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setDate(day);
+                                    field.onChange(newDate);
+                                  } else {
+                                    const today = new Date();
+                                    const newDate = new Date(today.getFullYear(), today.getMonth(), day);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Day" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                                  {Array.from({ length: daysInMonth }, (_, i) => (
+                                    <SelectItem key={i + 1} value={(i + 1).toString()} className="focus:bg-primary/10 transition-colors">
+                                      {i + 1}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {/* Month */}
+                              <Select
+                                value={field.value ? (field.value.getMonth() + 1).toString() : ""}
+                                onValueChange={(value) => {
+                                  const month = parseInt(value) - 1;
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setMonth(month);
+                                    // Adjust day if it exceeds the new month's days
+                                    const maxDays = getDaysInMonth(month + 1, newDate.getFullYear());
+                                    if (newDate.getDate() > maxDays) {
+                                      newDate.setDate(maxDays);
+                                    }
+                                    field.onChange(newDate);
+                                  } else {
+                                    const today = new Date();
+                                    const newDate = new Date(today.getFullYear(), month, 1);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Month" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                                  {[
+                                    "January", "February", "March", "April", "May", "June",
+                                    "July", "August", "September", "October", "November", "December"
+                                  ].map((month, index) => (
+                                    <SelectItem key={index + 1} value={(index + 1).toString()} className="focus:bg-primary/10 transition-colors">
+                                      {month}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              {/* Year */}
+                              <Select
+                                value={field.value ? field.value.getFullYear().toString() : ""}
+                                onValueChange={(value) => {
+                                  const year = parseInt(value);
+                                  if (field.value) {
+                                    const newDate = new Date(field.value);
+                                    newDate.setFullYear(year);
+                                    // Adjust day if it exceeds the new year's month days (for leap year)
+                                    const maxDays = getDaysInMonth(newDate.getMonth() + 1, year);
+                                    if (newDate.getDate() > maxDays) {
+                                      newDate.setDate(maxDays);
+                                    }
+                                    field.onChange(newDate);
+                                  } else {
+                                    const newDate = new Date(year, 0, 1);
+                                    field.onChange(newDate);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                  <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in max-h-60">
+                                  {Array.from({ length: 100 }, (_, i) => {
+                                    const year = new Date().getFullYear() - i;
+                                    return (
+                                      <SelectItem key={year} value={year.toString()} className="focus:bg-primary/10 transition-colors">
+                                        {year}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+
+                    {/* Gender */}
+                    <FormField
+                      control={form.control}
+                      name="gender"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gender</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                <SelectValue placeholder="Select gender" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                              <SelectItem value="Male" className="focus:bg-primary/10 transition-colors">Male</SelectItem>
+                              <SelectItem value="Female" className="focus:bg-primary/10 transition-colors">Female</SelectItem>
+                              <SelectItem value="Other" className="focus:bg-primary/10 transition-colors">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Marital Status */}
+                    <FormField
+                      control={form.control}
+                      name="marital_status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Marital Status</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
+                                <SelectValue placeholder="Select marital status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
+                              <SelectItem value="Single" className="focus:bg-primary/10 transition-colors">Single</SelectItem>
+                              <SelectItem value="Engaged" className="focus:bg-primary/10 transition-colors">Engaged</SelectItem>
+                              <SelectItem value="Married" className="focus:bg-primary/10 transition-colors">Married</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+
+                {/* Transaction History Section */}
+                {currentSection === 'transaction' && (
+                  <>
                   {/* Transaction ID */}
                   <FormField
                     control={form.control}
@@ -617,151 +1027,12 @@ export const CustomerDataForm = () => {
                       )}
                     />
                   )}
-                </div>
-
-                {/* Personal Information Section */}
-                <div className="pt-6 border-t border-border/20">
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Personal Information</h3>
-                  
-                  {/* Date of Birth */}
-                  <FormField
-                    control={form.control}
-                    name="date_of_birth"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col mb-4">
-                        <FormLabel>Date of Birth</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full h-12 pl-3 text-left font-normal bg-card/50 border-border/50 hover:border-primary/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:shadow-elegant",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick date of birth</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Anniversary Date */}
-                  <FormField
-                    control={form.control}
-                    name="anniversary_date"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col mb-4">
-                        <FormLabel>Anniversary Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full h-12 pl-3 text-left font-normal bg-card/50 border-border/50 hover:border-primary/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:shadow-elegant",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick anniversary date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date > new Date()}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Gender */}
-                  <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Gender</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
-                              <SelectValue placeholder="Select gender" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
-                            <SelectItem value="Male" className="focus:bg-primary/10 transition-colors">Male</SelectItem>
-                            <SelectItem value="Female" className="focus:bg-primary/10 transition-colors">Female</SelectItem>
-                            <SelectItem value="Other" className="focus:bg-primary/10 transition-colors">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Marital Status */}
-                  <FormField
-                    control={form.control}
-                    name="marital_status"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Marital Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="h-12 bg-card/50 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:border-primary/30 focus:shadow-elegant">
-                              <SelectValue placeholder="Select marital status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="bg-popover/95 backdrop-blur-sm border-primary/10 shadow-elegant animate-scale-in">
-                            <SelectItem value="Single" className="focus:bg-primary/10 transition-colors">Single</SelectItem>
-                            <SelectItem value="Engaged" className="focus:bg-primary/10 transition-colors">Engaged</SelectItem>
-                            <SelectItem value="Married" className="focus:bg-primary/10 transition-colors">Married</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  </>
+                )}
 
                 {/* Occasion and Relationship Section */}
-                <div className="pt-6 border-t border-border/20">
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Occasion & Relationship</h3>
-                  
+                {currentSection === 'occasion' && (
+                  <>
                   {/* Occasion for Purchase */}
                   <FormField
                     control={form.control}
@@ -815,12 +1086,12 @@ export const CustomerDataForm = () => {
                       </FormItem>
                     )}
                   />
-                </div>
+                  </>
+                )}
 
                 {/* Business Intelligence Section */}
-                <div className="pt-6 border-t border-border/20">
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Business Intelligence</h3>
-                  
+                {currentSection === 'business' && (
+                  <>
                   {/* Items Shown or Discussed */}
                   <FormField
                     control={form.control}
@@ -921,22 +1192,51 @@ export const CustomerDataForm = () => {
                       </FormItem>
                     )}
                   />
-                </div>
+                  </>
+                )}
 
+                {/* Navigation and Submit Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-border/20">
+                  {/* Previous Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={prevSection}
+                    disabled={sections.findIndex(s => s.id === currentSection) === 0}
+                    className="flex-1 h-12 bg-card/50 border-border/50 hover:border-primary/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:shadow-elegant disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
+
+                  {/* Next Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={nextSection}
+                    disabled={sections.findIndex(s => s.id === currentSection) === sections.length - 1}
+                    className="flex-1 h-12 bg-card/50 border-border/50 hover:border-primary/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-300 hover:shadow-elegant disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+
+                  {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full h-14 bg-gradient-to-r from-primary to-luxury-gold hover:from-primary/90 hover:to-luxury-gold/90 text-primary-foreground font-semibold text-lg shadow-elegant hover:shadow-luxury transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="flex-1 h-12 bg-gradient-to-r from-primary to-luxury-gold hover:from-primary/90 hover:to-luxury-gold/90 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
                       Saving...
                     </div>
                   ) : (
                     "Save Customer Data"
                   )}
                 </Button>
+                </div>
               </form>
             </Form>
           </CardContent>

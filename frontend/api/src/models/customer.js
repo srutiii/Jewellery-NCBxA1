@@ -88,6 +88,25 @@ class Customer {
     return customers.find(customer => customer.id === id) || null;
   }
 
+  // Get customer by email address
+  static getByEmail(email) {
+    if (!email) return null;
+    const customers = this.getAll();
+    return customers.find(customer => 
+      customer.email_address === email || customer.email === email
+    ) || null;
+  }
+
+  // Check if email already exists (excluding current customer for updates)
+  static emailExists(email, excludeId = null) {
+    if (!email) return false;
+    const customers = this.getAll();
+    return customers.some(customer => 
+      customer.id !== excludeId && 
+      (customer.email_address === email || customer.email === email)
+    );
+  }
+
   // Save all customers to file
   static saveAll(customers) {
     try {

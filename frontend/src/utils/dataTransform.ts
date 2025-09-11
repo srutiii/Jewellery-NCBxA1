@@ -4,43 +4,43 @@ import { CustomerData } from '../services/api';
 export interface FrontendFormData {
   full_name: string;
   contact_number: string;
-  email_address: string;
-  address: string;
-  community: string;
-  sub_community: string;
-  location: string;
+  email_address?: string;
+  address?: string;
+  community?: string;
+  sub_community?: string;
+  location?: string;
   
   // Purchase History
-  transaction_id: string;
-  sku_product_id: string;
-  product_category: string;
-  product_subcategory: string;
-  metal_type: string;
-  metal_purity: string;
-  gemstone_type: string;
-  gemstone_details: string;
-  design_style: string;
-  purchase_date_time: string;
-  purchase_value: string;
+  transaction_id?: string;
+  sku_product_id?: string;
+  product_category?: string;
+  product_subcategory?: string;
+  metal_type?: string;
+  metal_purity?: string;
+  gemstone_type?: string;
+  gemstone_details?: string;
+  design_style?: string;
+  purchase_date_time?: string;
+  purchase_value?: string;
   discount_applied: boolean;
-  discount_value: string;
+  discount_value?: string;
   
   // Personal Information
-  date_of_birth: Date | undefined;
-  anniversary_date: Date | undefined;
-  gender: string;
-  marital_status: string;
+  date_of_birth?: Date;
+  anniversary_date?: Date;
+  gender?: string;
+  marital_status?: string;
   
   // Occasion and Relationship
   occasion_for_purchase: string;
-  gift_recipient_relationship: string;
+  gift_recipient_relationship?: string;
   
   // Business Intelligence
-  items_shown_or_discussed: string;
-  expressed_interest_or_intent: string;
-  in_store_query: string;
-  budget_mentioned: string;
-  frequency_of_visit: string;
+  items_shown_or_discussed?: string;
+  expressed_interest_or_intent?: string;
+  in_store_query?: string;
+  budget_mentioned?: string;
+  frequency_of_visit?: string;
 }
 
 export function transformFormDataToApiData(formData: FrontendFormData): CustomerData {

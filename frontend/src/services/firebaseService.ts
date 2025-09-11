@@ -8,6 +8,7 @@ import {
   doc, 
   query, 
   orderBy,
+  where,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -22,10 +23,35 @@ export interface FirebaseApiResponse<T> {
   data?: T;
   error?: string;
   id?: string;
+  field?: string;
+  message?: string;
 }
 
 class FirebaseService {
   private readonly collectionName = 'customers';
+
+  // Check if email already exists in Firebase
+  private async checkEmailExists(email: string, excludeId?: string): Promise<boolean> {
+    if (!email) return false;
+    
+    try {
+      const q = query(
+        collection(db, this.collectionName),
+        where('email_address', '==', email)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      // If we're updating, exclude the current customer
+      if (excludeId) {
+        return querySnapshot.docs.some(doc => doc.id !== excludeId);
+      }
+      
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('Error checking email existence:', error);
+      return false;
+    }
+  }
 
   // Clean customer data by removing undefined values and converting to Firestore-compatible format
   private cleanCustomerData(data: CustomerData): any {
@@ -59,6 +85,18 @@ class FirebaseService {
   // Create a new customer
   async createCustomer(customerData: CustomerData): Promise<FirebaseApiResponse<FirebaseCustomerData>> {
     try {
+      // Check if email already exists
+      if (customerData.email_address) {
+        const emailExists = await this.checkEmailExists(customerData.email_address);
+        if (emailExists) {
+          return {
+            error: 'Email address already exists',
+            field: 'email_address',
+            message: 'A customer with this email address already exists. Please use a different email or leave it empty.'
+          };
+        }
+      }
+      
       // Filter out undefined values and convert to Firestore-compatible data
       const cleanData = this.cleanCustomerData(customerData);
       
@@ -131,6 +169,18 @@ class FirebaseService {
   // Update a customer
   async updateCustomer(id: string, customerData: Partial<CustomerData>): Promise<FirebaseApiResponse<FirebaseCustomerData>> {
     try {
+      // Check if email already exists (excluding current customer)
+      if (customerData.email_address) {
+        const emailExists = await this.checkEmailExists(customerData.email_address, id);
+        if (emailExists) {
+          return {
+            error: 'Email address already exists',
+            field: 'email_address',
+            message: 'A customer with this email address already exists. Please use a different email or leave it empty.'
+          };
+        }
+      }
+      
       const docRef = doc(db, this.collectionName, id);
       await updateDoc(docRef, {
         ...customerData,
@@ -161,6 +211,25 @@ class FirebaseService {
       console.error('Error deleting customer:', error);
       return {
         error: error instanceof Error ? error.message : 'Failed to delete customer'
+      };
+    }
+  }
+
+  // Check if email is available
+  async checkEmailAvailability(email: string): Promise<FirebaseApiResponse<{ available: boolean }>> {
+    try {
+      if (!email) {
+        return { data: { available: true } };
+      }
+      
+      const emailExists = await this.checkEmailExists(email);
+      return {
+        data: { available: !emailExists }
+      };
+    } catch (error) {
+      console.error('Error checking email availability:', error);
+      return {
+        error: error instanceof Error ? error.message : 'Failed to check email availability'
       };
     }
   }
