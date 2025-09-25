@@ -1,0 +1,71 @@
+# Node modules
+node_modules/
+
+# Build output
+/dist/
+/.next/
+/.vercel/
+
+# Vite cache
+.vite/
+
+# Bun cache
+.bun/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+
+# Firebase local emulators
+.firebase/
+
+# Misc
+*.local
+
+# Windows
+*.exe
+*.dll
+*.bat
+
+# Mac
+*.app
+
+# Test output
+/test-output/
+
+# Ignore lock files if not needed
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore admin build artifacts
+admin/dist/
+admin/.vite/
+admin/.bun/
+admin/node_modules/
+
+# Ignore frontend build artifacts
+frontend/dist/
+frontend/.vite/
+frontend/.bun/
+frontend/node_modules/
