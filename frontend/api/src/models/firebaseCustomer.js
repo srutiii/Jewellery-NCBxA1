@@ -190,6 +190,25 @@ class FirebaseCustomer {
     }
   }
 
+  // Check if email already exists (excluding current customer for updates)
+  static async emailExists(email, excludeId = null) {
+    if (!email) return false;
+    
+    try {
+      const snapshot = await db.collection('customers').where('email_address', '==', email).get();
+      
+      // If we're updating, exclude the current customer
+      if (excludeId) {
+        return snapshot.docs.some(doc => doc.id !== excludeId);
+      }
+      
+      return !snapshot.empty;
+    } catch (error) {
+      console.error('Error checking email existence:', error);
+      return false;
+    }
+  }
+
   // Search customers
   static async search(searchTerm) {
     try {

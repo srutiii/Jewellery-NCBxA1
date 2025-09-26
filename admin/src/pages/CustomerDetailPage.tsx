@@ -1,102 +1,388 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Topbar from '../components/Topbar';
 import { db } from '../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { 
+  FiArrowLeft, 
+  FiEdit3, 
+  FiUser, 
+  FiMail, 
+  FiPhone, 
+  FiMapPin, 
+  FiCalendar,
+  FiHeart,
+  FiShoppingBag,
+  FiRefreshCw,
+  FiInfo
+} from 'react-icons/fi';
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Real-time data fetching with Firestore listener
   useEffect(() => {
-    async function fetchCustomer() {
-      setLoading(true);
-      const ref = doc(db, 'customers', id!);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        setCustomer({ id: snap.id, ...snap.data() });
+    if (!id) return;
+
+    console.log('Setting up real-time listener for customer:', id);
+    setLoading(true);
+    const customerRef = doc(db, 'customers', id);
+    
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(customerRef, (docSnapshot) => {
+      console.log('Firestore snapshot received:', docSnapshot.exists());
+      if (docSnapshot.exists()) {
+        const customerData = { id: docSnapshot.id, ...docSnapshot.data() };
+        console.log('Customer data updated:', customerData);
+        setCustomer(customerData);
+      } else {
+        console.log('Customer document does not exist');
+        setCustomer(null);
       }
       setLoading(false);
-    }
-    if (id) fetchCustomer();
+    }, (error) => {
+      console.error('Error in Firestore listener:', error);
+      setLoading(false);
+    });
+
+    // Cleanup listener on unmount
+    return () => {
+      console.log('Cleaning up Firestore listener');
+      unsubscribe();
+    };
   }, [id]);
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
-  if (!customer) return <div className="p-8 text-center">Customer not found</div>;
+  // Add visibility change listener to refresh when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && id) {
+        console.log('Tab became visible, refreshing data');
+        handleRefresh();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [id]);
+
+  // Add periodic refresh every 30 seconds
+  useEffect(() => {
+    if (!id) return;
+
+    const interval = setInterval(() => {
+      console.log('Periodic refresh triggered');
+      handleRefresh();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [id]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    if (!id) return;
+    
+    console.log('Manual refresh triggered for customer:', id);
+    setRefreshing(true);
+    try {
+      const customerRef = doc(db, 'customers', id);
+      const snap = await getDoc(customerRef);
+      if (snap.exists()) {
+        const freshData = { id: snap.id, ...snap.data() };
+        console.log('Fresh data fetched:', freshData);
+        setCustomer(freshData);
+      } else {
+        console.log('Customer not found during refresh');
+        setCustomer(null);
+      }
+    } catch (error) {
+      console.error('Error refreshing customer:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Not provided';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading customer details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FiUser className="w-12 h-12 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-600 mb-2">Customer not found</h3>
+          <p className="text-gray-500 mb-4">The customer you're looking for doesn't exist.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-brand hover:bg-brand-dark text-white px-6 py-2 rounded-xl transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-brand-light">
-      <Topbar />
-      <div className="w-full mx-auto px-4">
-        <button className="mb-2 text-brand underline" onClick={() => navigate(-1)}>← Back</button>
-        <h2 className="text-2xl font-bold text-brand mb-2">{customer.full_name || customer.name}</h2>
-        <div className="space-y-1 text-sm mb-4">
-          <div><span className="font-semibold">Gender:</span> {customer.gender}</div>
-          <div><span className="font-semibold">Email:</span> {customer.email || customer.email_address}</div>
-          <div><span className="font-semibold">Phone:</span> {customer.phone || customer.contact_number}</div>
-          <div><span className="font-semibold">Address:</span> {customer.address}</div>
-          <div><span className="font-semibold">City:</span> {customer.city}</div>
-          <div><span className="font-semibold">Community:</span> {customer.community}</div>
-          <div><span className="font-semibold">Sub Community:</span> {customer.sub_community}</div>
-          <div><span className="font-semibold">Location:</span> {customer.location}</div>
-          <div><span className="font-semibold">Marital Status:</span> {customer.marital_status}</div>
-          <div><span className="font-semibold">Anniversary Date:</span> {customer.anniversary_date}</div>
-          <div><span className="font-semibold">Date of Birth:</span> {customer.date_of_birth || customer.dob}</div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header */}
+      <div className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/')}
+                className="p-2 text-gray-600 hover:text-brand hover:bg-brand/5 rounded-xl transition-all duration-200"
+              >
+                <FiArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Customer Details</h1>
+                <p className="text-gray-500">View and manage customer information</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-brand hover:bg-brand/5 rounded-xl transition-all duration-200 disabled:opacity-50"
+              >
+                <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
+                onClick={() => navigate(`/edit-customer/${id}`)}
+                className="flex items-center gap-2 bg-brand hover:bg-brand-dark text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <FiEdit3 className="w-4 h-4" />
+                Edit Customer
+              </button>
+            </div>
+          </div>
         </div>
-        <h3 className="text-xl font-bold mb-1">Details & Purchase History</h3>
-        <div className="overflow-x-auto mb-2">
-          <table className="min-w-full border rounded-lg">
-            <thead className="bg-brand text-white">
-              <tr>
-                <th className="px-2 py-1 text-left">Date</th>
-                <th className="px-2 py-1 text-left">Occasion</th>
-                <th className="px-2 py-1 text-left">Budget</th>
-                <th className="px-2 py-1 text-left">Interest/Intent</th>
-                <th className="px-2 py-1 text-left">Frequency of Visit</th>
-                <th className="px-2 py-1 text-left">In-store Query</th>
-                <th className="px-2 py-1 text-left">Items Shown/Discussed</th>
-                <th className="px-2 py-1 text-left">Purchase ID</th>
-                <th className="px-2 py-1 text-left">Item</th>
-                <th className="px-2 py-1 text-left">Category</th>
-                <th className="px-2 py-1 text-left">Type</th>
-                <th className="px-2 py-1 text-left">Metal</th>
-                <th className="px-2 py-1 text-left">Gemstone</th>
-                <th className="px-2 py-1 text-left">Price</th>
-                <th className="px-2 py-1 text-left">Discount</th>
-                <th className="px-2 py-1 text-left">Sub Community</th>
-              </tr>
-            </thead>
-            <tbody>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8" key={customer?.id + customer?.updated_at}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Customer Profile */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              {/* Avatar */}
+              <div className="text-center mb-6">
+                <div className="w-24 h-24 bg-gradient-to-br from-brand to-brand-dark rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg mx-auto mb-4">
+                  {(customer.full_name || customer.name || 'U')[0].toUpperCase()}
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-1">
+                  {customer.full_name || customer.name || 'No Name'}
+                </h2>
+                <p className="text-gray-500">Customer ID: {customer.id}</p>
+                {customer.updated_at && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Last updated: {new Date(customer.updated_at.seconds * 1000).toLocaleString()}
+                  </p>
+                )}
+              </div>
+
+              {/* Contact Info */}
+              <div className="space-y-4">
+                {(customer.email_address || customer.email) && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <FiMail className="w-5 h-5 text-brand" />
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="font-medium">{customer.email_address || customer.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(customer.contact_number || customer.phone) && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <FiPhone className="w-5 h-5 text-brand" />
+                    <div>
+                      <p className="text-sm text-gray-500">Phone</p>
+                      <p className="font-medium">{customer.contact_number || customer.phone}</p>
+                    </div>
+                  </div>
+                )}
+
+                {customer.address && (
+                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                    <FiMapPin className="w-5 h-5 text-brand mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-500">Address</p>
+                      <p className="font-medium">{customer.address}</p>
+                      {(customer.location || customer.city) && (
+                        <p className="text-sm text-gray-600">{customer.location || customer.city}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Personal Information */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-brand/10 rounded-lg">
+                  <FiUser className="w-5 h-5 text-brand" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800">Personal Information</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm text-gray-500">Gender</label>
+                  <p className="font-medium">{customer.gender || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Marital Status</label>
+                  <p className="font-medium">{customer.marital_status || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Date of Birth</label>
+                  <p className="font-medium">{formatDate(customer.date_of_birth || customer.dob)}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Anniversary Date</label>
+                  <p className="font-medium">{formatDate(customer.anniversary_date)}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Community</label>
+                  <p className="font-medium">{customer.community || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Sub Community</label>
+                  <p className="font-medium">{customer.sub_community || 'Not specified'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Business Intelligence */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-brand/10 rounded-lg">
+                  <FiInfo className="w-5 h-5 text-brand" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800">Business Intelligence</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm text-gray-500">Occasion for Purchase</label>
+                  <p className="font-medium">{customer.occasion_for_purchase || customer.occasion || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Budget Mentioned</label>
+                  <p className="font-medium">{customer.budget_mentioned || customer.budget || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Frequency of Visit</label>
+                  <p className="font-medium">{customer.frequency_of_visit || 'Not specified'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Gift Recipient Relationship</label>
+                  <p className="font-medium">{customer.gift_recipient_relationship || 'Not specified'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-500">Items Shown/Discussed</label>
+                  <p className="font-medium">{customer.items_shown_or_discussed || 'Not specified'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-500">Expressed Interest/Intent</label>
+                  <p className="font-medium">{customer.expressed_interest_or_intent || 'Not specified'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-500">In-store Query</label>
+                  <p className="font-medium">{customer.in_store_query || 'Not specified'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Purchase History */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-brand/10 rounded-lg">
+                  <FiShoppingBag className="w-5 h-5 text-brand" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800">Purchase History</h3>
+              </div>
+
               {Array.isArray(customer.purchase_history) && customer.purchase_history.length > 0 ? (
-                customer.purchase_history
-                  .sort((a: any, b: any) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
-                  .map((purchase: any, idx: number) => (
-                    <tr key={purchase.purchase_id || idx} className="border-b">
-                      <td className="px-2 py-1">{purchase.purchase_date}</td>
-                      <td className="px-2 py-1">{customer.occasion || customer.occasion_for_purchase}</td>
-                      <td className="px-2 py-1">{customer.budget || customer.budget_mentioned}</td>
-                      <td className="px-2 py-1">{customer.expressed_interest_or_intent}</td>
-                      <td className="px-2 py-1">{customer.frequency_of_visit}</td>
-                      <td className="px-2 py-1">{customer.in_store_query}</td>
-                      <td className="px-2 py-1">{customer.items_shown_or_discussed}</td>
-                      <td className="px-2 py-1">{purchase.purchase_id}</td>
-                      <td className="px-2 py-1">{purchase.item_description}</td>
-                      <td className="px-2 py-1">{purchase.item_category}</td>
-                      <td className="px-2 py-1">{purchase.item_type}</td>
-                      <td className="px-2 py-1">{purchase.metal_type} {purchase.metal_purity}</td>
-                      <td className="px-2 py-1">{purchase.gemstone_details?.type}</td>
-                      <td className="px-2 py-1">₹{purchase.price}</td>
-                      <td className="px-2 py-1">{purchase.discount_applied?.type} {purchase.discount_applied?.percentage ? `${purchase.discount_applied.percentage}%` : ''}</td>
-                      <td className="px-2 py-1">{purchase.sub_community}</td>
-                    </tr>
-                  ))
+                <div className="space-y-4">
+                  {customer.purchase_history
+                    .sort((a: any, b: any) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime())
+                    .map((purchase: any, idx: number) => (
+                      <div key={purchase.purchase_id || idx} className="border border-gray-200 rounded-xl p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-sm text-gray-500">Purchase Date</label>
+                            <p className="font-medium">{formatDate(purchase.purchase_date)}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-500">Item</label>
+                            <p className="font-medium">{purchase.item_description || 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-500">Price</label>
+                            <p className="font-medium">₹{purchase.price || 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-500">Category</label>
+                            <p className="font-medium">{purchase.item_category || 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-500">Metal</label>
+                            <p className="font-medium">{purchase.metal_type} {purchase.metal_purity}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm text-gray-500">Gemstone</label>
+                            <p className="font-medium">{purchase.gemstone_details?.type || 'Not specified'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
               ) : (
-                <tr><td colSpan={16} className="px-3 py-2 text-center text-gray-400">No purchase history</td></tr>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiShoppingBag className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-600 mb-2">No Purchase History</h4>
+                  <p className="text-gray-500">This customer hasn't made any purchases yet.</p>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

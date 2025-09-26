@@ -107,6 +107,11 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Check email availability
+  async checkEmailAvailability(email: string): Promise<ApiResponse<{ available: boolean }>> {
+    return this.request<{ available: boolean }>(`/customers/email/check/${encodeURIComponent(email)}`);
+  }
 }
 
 export const apiService = new ApiService();

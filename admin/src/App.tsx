@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardLayout from './pages/DashboardLayout';
 import CustomerDetailModal from './components/CustomerDetailModal';
 import CustomerDetailPage from './pages/CustomerDetailPage';
+import EditCustomerPage from './pages/EditCustomerPage';
 
 export default function App() {
   return (
@@ -13,7 +14,8 @@ export default function App() {
           <Route path="customer/:id" element={<CustomerDetailModal />} />
         </Route>
         <Route path="/customer-detail/:id" element={<CustomerDetailPage />} />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/edit-customer/:id" element={<EditCustomerPage />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );

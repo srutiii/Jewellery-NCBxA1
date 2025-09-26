@@ -32,7 +32,7 @@ export const useEmailValidation = (email: string, debounceMs: number = 500) => {
 
     try {
       const response = await firebaseService.checkEmailAvailability(emailToCheck);
-      
+
       if (response.error) {
         setState(prev => ({
           ...prev,
@@ -47,7 +47,7 @@ export const useEmailValidation = (email: string, debounceMs: number = 500) => {
           ...prev,
           isValid: isAvailable,
           isChecking: false,
-          error: isAvailable ? null : 'This email address is already registered',
+          error: isAvailable ? null : 'Customer Already Exists!',
           isAvailable,
         }));
       }

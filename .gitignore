@@ -69,3 +69,8 @@ frontend/dist/
 frontend/.vite/
 frontend/.bun/
 frontend/node_modules/
+
+# Other files
+FIREBASE-SETUP-GUIDE.md
+ncbxa1-firebase-adminsdk-fbsvc-4007f5b45a.json
+test-firebase-connection.js

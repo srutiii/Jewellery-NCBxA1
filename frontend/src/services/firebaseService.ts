@@ -20,6 +20,7 @@ export interface FirebaseCustomerData extends Omit<CustomerData, 'created_at' | 
 }
 
 export interface FirebaseApiResponse<T> {
+  details: boolean;
   data?: T;
   error?: string;
   id?: string;

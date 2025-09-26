@@ -1,11 +1,11 @@
-import Customer from '../models/customer.js';
+import FirebaseCustomer from '../models/firebaseCustomer.js';
 
 // Controller for customer operations
 const customerController = {
   // Get all customers
-  getAllCustomers: (req, res) => {
+  getAllCustomers: async (req, res) => {
     try {
-      const customers = Customer.getAll();
+      const customers = await FirebaseCustomer.getAll();
       res.json(customers);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -14,10 +14,10 @@ const customerController = {
   },
 
   // Get a specific customer by ID
-  getCustomerById: (req, res) => {
+  getCustomerById: async (req, res) => {
     try {
       const { id } = req.params;
-      const customer = Customer.getById(id);
+      const customer = await FirebaseCustomer.getById(id);
       
       if (!customer) {
         return res.status(404).json({ error: 'Customer not found' });
@@ -31,13 +31,14 @@ const customerController = {
   },
 
   // Create a new customer
-  createCustomer: (req, res) => {
+  createCustomer: async (req, res) => {
     try {
+
       const { email_address, email } = req.body;
       const emailToCheck = email_address || email;
       
       // Check if email already exists
-      if (emailToCheck && Customer.emailExists(emailToCheck)) {
+      if (emailToCheck && await FirebaseCustomer.emailExists(emailToCheck)) {
         return res.status(400).json({ 
           error: 'Email address already exists',
           field: 'email_address',
@@ -45,8 +46,8 @@ const customerController = {
         });
       }
       
-      const newCustomer = new Customer(req.body);
-      const savedCustomer = newCustomer.save();
+      const newCustomer = new FirebaseCustomer(req.body);
+      const savedCustomer = await newCustomer.save();
       
       if (!savedCustomer) {
         return res.status(500).json({ error: 'Failed to save customer' });
@@ -60,10 +61,10 @@ const customerController = {
   },
 
   // Update an existing customer
-  updateCustomer: (req, res) => {
+  updateCustomer: async (req, res) => {
     try {
       const { id } = req.params;
-      const existingCustomer = Customer.getById(id);
+      const existingCustomer = await FirebaseCustomer.getById(id);
       
       if (!existingCustomer) {
         return res.status(404).json({ error: 'Customer not found' });
@@ -73,7 +74,7 @@ const customerController = {
       const emailToCheck = email_address || email;
       
       // Check if email already exists (excluding current customer)
-      if (emailToCheck && Customer.emailExists(emailToCheck, id)) {
+      if (emailToCheck && await FirebaseCustomer.emailExists(emailToCheck, id)) {
         return res.status(400).json({ 
           error: 'Email address already exists',
           field: 'email_address',
@@ -82,13 +83,13 @@ const customerController = {
       }
       
       // Merge existing customer with updates
-      const updatedCustomer = new Customer({
+      const updatedCustomer = new FirebaseCustomer({
         ...existingCustomer,
         ...req.body,
         id // Ensure ID remains the same
       });
       
-      const result = updatedCustomer.update();
+      const result = await updatedCustomer.update();
       
       if (!result) {
         return res.status(500).json({ error: 'Failed to update customer' });
@@ -102,16 +103,16 @@ const customerController = {
   },
 
   // Delete a customer
-  deleteCustomer: (req, res) => {
+  deleteCustomer: async (req, res) => {
     try {
       const { id } = req.params;
-      const existingCustomer = Customer.getById(id);
+      const existingCustomer = await FirebaseCustomer.getById(id);
       
       if (!existingCustomer) {
         return res.status(404).json({ error: 'Customer not found' });
       }
       
-      const deleted = Customer.delete(id);
+      const deleted = await FirebaseCustomer.delete(id);
       
       if (!deleted) {
         return res.status(500).json({ error: 'Failed to delete customer' });
@@ -121,6 +122,23 @@ const customerController = {
     } catch (error) {
       console.error('Error deleting customer:', error);
       res.status(500).json({ error: 'Failed to delete customer' });
+    }
+  },
+
+  // Check email availability
+  checkEmailAvailability: async (req, res) => {
+    try {
+      const { email } = req.params;
+      
+      if (!email) {
+        return res.json({ available: true });
+      }
+      
+      const emailExists = await FirebaseCustomer.emailExists(email);
+      res.json({ available: !emailExists });
+    } catch (error) {
+      console.error('Error checking email availability:', error);
+      res.status(500).json({ error: 'Failed to check email availability' });
     }
   }
 };

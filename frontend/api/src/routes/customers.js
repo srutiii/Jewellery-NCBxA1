@@ -19,4 +19,7 @@ router.put('/:id', validateCustomer, customerController.updateCustomer);
 // DELETE a customer
 router.delete('/:id', customerController.deleteCustomer);
 
+// GET check email availability
+router.get('/email/check/:email', customerController.checkEmailAvailability);
+
 export default router;
