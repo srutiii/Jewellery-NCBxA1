@@ -1,6 +1,7 @@
 import express from 'express';
 import customerController from '../controllers/customerController.js';
 import { validateCustomer } from '../middleware/validation.js';
+import OdooSyncMiddleware from '../middleware/odooSync.js';
 
 const router = express.Router();
 
@@ -11,13 +12,13 @@ router.get('/', customerController.getAllCustomers);
 router.get('/:id', customerController.getCustomerById);
 
 // POST create a new customer
-router.post('/', validateCustomer, customerController.createCustomer);
+router.post('/', validateCustomer, OdooSyncMiddleware.create(), customerController.createCustomer);
 
 // PUT update a customer
-router.put('/:id', validateCustomer, customerController.updateCustomer);
+router.put('/:id', validateCustomer, OdooSyncMiddleware.create(), customerController.updateCustomer);
 
 // DELETE a customer
-router.delete('/:id', customerController.deleteCustomer);
+router.delete('/:id', OdooSyncMiddleware.create(), customerController.deleteCustomer);
 
 // GET check email availability
 router.get('/email/check/:email', customerController.checkEmailAvailability);

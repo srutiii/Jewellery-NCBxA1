@@ -88,6 +88,14 @@ class FirebaseCustomer {
   // Create a new customer
   async save() {
     try {
+      console.log('🔥 Saving customer to Firebase...');
+      console.log('Customer data:', {
+        full_name: this.full_name,
+        contact_number: this.contact_number,
+        email_address: this.email_address,
+        occasion_for_purchase: this.occasion_for_purchase
+      });
+      
       const customerData = {
         full_name: this.full_name,
         contact_number: this.contact_number,
@@ -122,11 +130,13 @@ class FirebaseCustomer {
         updated_at: this.updated_at
       };
 
+      console.log('Prepared customer data for Firebase:', customerData);
       const docRef = await db.collection('customers').add(customerData);
       this.id = docRef.id;
+      console.log('✅ Customer saved to Firebase with ID:', this.id);
       return this;
     } catch (error) {
-      console.error('Error saving customer:', error);
+      console.error('❌ Error saving customer to Firebase:', error);
       return null;
     }
   }

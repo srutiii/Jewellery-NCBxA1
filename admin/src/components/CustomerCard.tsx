@@ -30,14 +30,20 @@ export default function CustomerCard({ customer }: CustomerCardProps) {
       {/* Customer Avatar */}
       <div className="flex justify-center mb-4">
         <div className="w-16 h-16 bg-gradient-to-br from-brand to-brand-dark rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg">
-          {(customer.full_name || customer.name || customer.email || customer.email_address || 'U')[0].toUpperCase()}
+          {(
+            customer.full_name?.[0] ||
+            customer.name?.[0] ||
+            customer.email?.[0] ||
+            customer.email_address?.[0] ||
+            'N'
+          ).toUpperCase()}
         </div>
       </div>
 
       {/* Customer Info */}
       <div className="text-center mb-4">
         <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-brand transition-colors">
-          {customer.full_name || customer.name || 'No Name'}
+          {customer.full_name || customer.name || customer.email || customer.email_address || 'Unnamed Customer'}
         </h3>
 
         {(customer.email || customer.email_address) && (

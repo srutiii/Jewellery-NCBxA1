@@ -33,12 +33,15 @@ const customerController = {
   // Create a new customer
   createCustomer: async (req, res) => {
     try {
+      console.log('📝 Creating new customer...');
+      console.log('Request body:', req.body);
 
       const { email_address, email } = req.body;
       const emailToCheck = email_address || email;
       
       // Check if email already exists
       if (emailToCheck && await FirebaseCustomer.emailExists(emailToCheck)) {
+        console.log('❌ Email already exists:', emailToCheck);
         return res.status(400).json({ 
           error: 'Email address already exists',
           field: 'email_address',
@@ -46,16 +49,22 @@ const customerController = {
         });
       }
       
+      console.log('✅ Email check passed, creating customer...');
       const newCustomer = new FirebaseCustomer(req.body);
+      console.log('Customer object created:', newCustomer);
+      
       const savedCustomer = await newCustomer.save();
+      console.log('Customer saved to Firebase:', savedCustomer);
       
       if (!savedCustomer) {
+        console.log('❌ Failed to save customer to Firebase');
         return res.status(500).json({ error: 'Failed to save customer' });
       }
       
+      console.log('✅ Customer created successfully with ID:', savedCustomer.id);
       res.status(201).json(savedCustomer);
     } catch (error) {
-      console.error('Error creating customer:', error);
+      console.error('❌ Error creating customer:', error);
       res.status(500).json({ error: 'Failed to create customer' });
     }
   },

@@ -26,13 +26,19 @@ if (firebaseConfig.useEnvVars) {
 // Initialize the app if it hasn't been initialized
 if (!admin.apps.length) {
   try {
+    console.log('Initializing Firebase Admin...');
+    console.log('Using environment variables:', firebaseConfig.useEnvVars);
+    console.log('Project ID:', serviceAccount.project_id);
+    console.log('Client Email:', serviceAccount.client_email);
+    
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL: firebaseConfig.databaseURL
     });
-    console.log('Firebase Admin initialized successfully');
+    console.log('✅ Firebase Admin initialized successfully');
   } catch (error) {
-    console.error('Error initializing Firebase Admin:', error);
+    console.error('❌ Error initializing Firebase Admin:', error);
+    console.error('Service Account:', serviceAccount);
   }
 }
 
