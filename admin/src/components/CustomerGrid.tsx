@@ -16,31 +16,56 @@ export default function CustomerGrid() {
   const [search, setSearch] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    async function fetchCustomers() {
-      setLoading(true);
-      try {
-        const querySnapshot = await getDocs(collection(db, 'customers'));
-        const data: any[] = querySnapshot.docs.map(doc => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            name: d.full_name || d.name || d.email || d.email_address || '',
-            full_name: d.full_name,
-            email: d.email,
-            email_address: d.email_address,
-          };
-        });
-        setCustomers(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching customers:', error);
-        setLoading(false);
-      }
-    }
     fetchCustomers();
   }, []);
+
+  async function fetchCustomers() {
+    setLoading(true);
+    try {
+      // Use API endpoint instead of direct Firebase query
+      const response = await fetch('http://localhost:3000/customers');
+      const apiData = await response.json();
+
+      const data: any[] = apiData.map((d: any) => ({
+        id: d.id,
+        name: d.full_name || d.name || d.email || d.email_address || '',
+        full_name: d.full_name,
+        email: d.email,
+        email_address: d.email_address,
+      }));
+
+      setCustomers(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      setLoading(false);
+    }
+  }
+
+  async function handleSyncToOdoo() {
+    setSyncing(true);
+    try {
+      const response = await fetch('http://localhost:3000/customers/sync-all-odoo', {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`✅ Sync completed!\n\nCreated: ${result.created}\nUpdated: ${result.updated}\nFailed: ${result.failed}`);
+      } else {
+        alert('❌ Sync failed: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error syncing to Odoo:', error);
+      alert('❌ Sync failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const filtered = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -58,13 +83,13 @@ export default function CustomerGrid() {
               <p className="text-gray-500">Manage and view all customer information</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="relative">
-              <FiSearch className="absolute -3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search customeleftrs..."
+                placeholder="Search customers..."
                 className="pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all duration-200 w-64"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -73,9 +98,28 @@ export default function CustomerGrid() {
             <button className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors duration-200">
               <FiFilter className="w-5 h-5 text-gray-600" />
             </button>
+            <button
+              onClick={handleSyncToOdoo}
+              disabled={syncing}
+              className="px-4 py-3 bg-brand text-white rounded-xl hover:bg-brand/90 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Sync to Odoo</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-        
+
         {/* Stats */}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-gradient-to-r from-brand/10 to-brand/5 rounded-xl p-4">

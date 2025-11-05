@@ -121,10 +121,29 @@ const customerController = {
         return res.status(404).json({ error: 'Customer not found' });
       }
       
+      // Delete from Firebase first
       const deleted = await FirebaseCustomer.delete(id);
       
       if (!deleted) {
         return res.status(500).json({ error: 'Failed to delete customer' });
+      }
+      
+      // If customer has odoo_id, also delete from Odoo
+      if (existingCustomer.odoo_id) {
+        try {
+          const { isOdooSyncEnabled } = await import('../config/odoo-env.js');
+          if (isOdooSyncEnabled()) {
+            const OdooService = (await import('../services/odooService.js')).default;
+            const odooService = new OdooService();
+            
+            console.log(`🗑️ Deleting customer from Odoo CRM (Lead ID: ${existingCustomer.odoo_id})`);
+            await odooService.makeRpcCall('crm.lead', 'unlink', [[existingCustomer.odoo_id]]);
+            console.log('✅ Customer deleted from Odoo CRM');
+          }
+        } catch (odooError) {
+          console.error('⚠️ Failed to delete from Odoo (non-blocking):', odooError.message);
+          // Don't fail the main delete operation if Odoo delete fails
+        }
       }
       
       res.status(204).send();
@@ -148,6 +167,42 @@ const customerController = {
     } catch (error) {
       console.error('Error checking email availability:', error);
       res.status(500).json({ error: 'Failed to check email availability' });
+    }
+  },
+
+  // Sync single customer to Odoo (manual trigger)
+  syncToOdoo: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const odooSyncService = (await import('../services/odooSyncService.js')).default;
+      
+      const result = await odooSyncService.syncCustomer(id);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Customer ${result.action} in Odoo`,
+          odooId: result.odooId 
+        });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error('Error syncing to Odoo:', error);
+      res.status(500).json({ error: 'Failed to sync to Odoo' });
+    }
+  },
+
+  // Sync all customers to Odoo (manual trigger)
+  syncAllToOdoo: async (req, res) => {
+    try {
+      const odooSyncService = (await import('../services/odooSyncService.js')).default;
+      
+      const results = await odooSyncService.syncAllCustomers();
+      res.json(results);
+    } catch (error) {
+      console.error('Error syncing all to Odoo:', error);
+      res.status(500).json({ error: 'Failed to sync all to Odoo' });
     }
   }
 };

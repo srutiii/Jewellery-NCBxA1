@@ -1,68 +1,68 @@
 // Odoo Configuration
 export const odooConfig = {
   // Odoo server details
-  baseUrl: 'https://a1-future-crm.odoo.com',
-  database: 'a1-future-crm', // Usually same as subdomain
-  
+  baseUrl: "https://a1-future-crm.odoo.com",
+  database: "a1-future-crm", // Usually same as subdomain
+
   // Authentication credentials
-  username: 'saugata@a1future.com',
-  password: 'Saugata1000$',
-  apiKey: '0cdd3e223ebd96dbbf4e020d0779c5543f716ed6',
-  
+  username: "saugata@a1future.com",
+  password: "Saugata1000$",
+  apiKey: "0cdd3e223ebd96dbbf4e020d0779c5543f716ed6",
+
   // API endpoints
   endpoints: {
-    authenticate: '/web/session/authenticate',
-    jsonRpc: '/web/dataset/call_kw',
-    create: '/web/dataset/call_kw',
-    update: '/web/dataset/call_kw',
-    delete: '/web/dataset/call_kw',
-    search: '/web/dataset/call_kw'
+    authenticate: "/web/session/authenticate",
+    jsonRpc: "/web/dataset/call_kw",
+    create: "/web/dataset/call_kw",
+    update: "/web/dataset/call_kw",
+    delete: "/web/dataset/call_kw",
+    search: "/web/dataset/call_kw",
   },
-  
+
   // Model mappings
   models: {
-    customers: 'res.partner', // Odoo uses res.partner for customers/contacts
-    leads: 'crm.lead',
-    opportunities: 'crm.lead'
+    customers: "res.partner", // Odoo uses res.partner for customers/contacts
+    leads: "crm.lead",
+    opportunities: "crm.lead",
   },
-  
+
   // Field mappings from our customer model to Odoo fields
   fieldMappings: {
     // Basic contact information
-    full_name: 'name',
-    contact_number: 'phone',
-    email_address: 'email',
-    address: 'street',
-    community: 'city',
-    location: 'city',
-    
+    full_name: "name",
+    contact_number: "phone",
+    email_address: "email",
+    address: "street",
+    community: "city",
+    location: "city",
+
     // Additional fields (will be stored in custom fields or notes)
-    occasion_for_purchase: 'comment', // Store in comment field
-    date_of_birth: 'comment',
-    anniversary_date: 'comment',
-    gender: 'comment',
-    marital_status: 'comment',
-    budget_mentioned: 'comment',
-    gift_recipient_relationship: 'comment',
-    items_shown_or_discussed: 'comment',
-    expressed_interest_or_intent: 'comment',
-    in_store_query: 'comment',
-    frequency_of_visit: 'comment',
-    lead_source: 'comment',
-    notes: 'comment',
-    purchase_history: 'comment',
-    
+    occasion_for_purchase: "comment", // Store in comment field
+    date_of_birth: "comment",
+    anniversary_date: "comment",
+    gender: "comment",
+    marital_status: "comment",
+    budget_mentioned: "comment",
+    gift_recipient_relationship: "comment",
+    items_shown_or_discussed: "comment",
+    expressed_interest_or_intent: "comment",
+    in_store_query: "comment",
+    frequency_of_visit: "comment",
+    lead_source: "comment",
+    notes: "comment",
+    purchase_history: "comment",
+
     // Legacy fields
-    phone: 'phone',
-    email: 'email',
-    city: 'city',
-    dob: 'comment',
-    occasion: 'comment',
-    budget: 'comment',
-    diamond_shape: 'comment',
-    first_visit: 'comment'
+    phone: "phone",
+    email: "email",
+    city: "city",
+    dob: "comment",
+    occasion: "comment",
+    budget: "comment",
+    diamond_shape: "comment",
+    first_visit: "comment",
   },
-  
+
   // Default values for Odoo fields
   defaults: {
     is_company: false,
@@ -79,7 +79,7 @@ export const odooConfig = {
     parent_id: false,
     child_ids: false,
     ref: false,
-    lang: 'en_US',
+    lang: "en_US",
     tz: false,
     user_id: false,
     vat: false,
@@ -128,26 +128,26 @@ export const odooConfig = {
     activity_date_deadline: false,
     activity_summary: false,
     activity_user_id: false,
-    activity_ids_count: 0
-  }
+    activity_ids_count: 0,
+  },
 };
 
 // Helper function to format customer data for Odoo
 export const formatCustomerForOdoo = (customerData) => {
   const odooData = {
-    ...odooConfig.defaults
+    ...odooConfig.defaults,
   };
-  
+
   // Map basic fields
-  Object.keys(odooConfig.fieldMappings).forEach(ourField => {
+  Object.keys(odooConfig.fieldMappings).forEach((ourField) => {
     const odooField = odooConfig.fieldMappings[ourField];
     const value = customerData[ourField];
-    
-    if (value !== null && value !== undefined && value !== '') {
-      if (odooField === 'comment') {
+
+    if (value !== null && value !== undefined && value !== "") {
+      if (odooField === "comment") {
         // Append to comment field
         if (!odooData.comment) {
-          odooData.comment = '';
+          odooData.comment = "";
         }
         odooData.comment += `${ourField}: ${value}\n`;
       } else {
@@ -155,18 +155,23 @@ export const formatCustomerForOdoo = (customerData) => {
       }
     }
   });
-  
+
   // Add purchase history to comment
-  if (customerData.purchase_history && customerData.purchase_history.length > 0) {
+  if (
+    customerData.purchase_history &&
+    customerData.purchase_history.length > 0
+  ) {
     if (!odooData.comment) {
-      odooData.comment = '';
+      odooData.comment = "";
     }
-    odooData.comment += '\nPurchase History:\n';
+    odooData.comment += "\nPurchase History:\n";
     customerData.purchase_history.forEach((purchase, index) => {
-      odooData.comment += `${index + 1}. ${purchase.item_description} - ${purchase.price} (${purchase.purchase_date})\n`;
+      odooData.comment += `${index + 1}. ${purchase.item_description} - ${
+        purchase.price
+      } (${purchase.purchase_date})\n`;
     });
   }
-  
+
   return odooData;
 };
 

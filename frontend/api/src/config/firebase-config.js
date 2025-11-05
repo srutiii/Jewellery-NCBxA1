@@ -22,7 +22,7 @@ export const firebaseConfig = {
   },
 
   // Option 2: Environment variables (recommended)
-  useEnvVars: true,
+  useEnvVars: false,
 
   // Database URL
   databaseURL: "https://ncbxa1.firebaseio.com",

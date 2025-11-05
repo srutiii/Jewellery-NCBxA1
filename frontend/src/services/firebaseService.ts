@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
   orderBy,
   where,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { CustomerData } from './api';
@@ -34,19 +34,19 @@ class FirebaseService {
   // Check if email already exists in Firebase
   private async checkEmailExists(email: string, excludeId?: string): Promise<boolean> {
     if (!email) return false;
-    
+
     try {
       const q = query(
         collection(db, this.collectionName),
         where('email_address', '==', email)
       );
       const querySnapshot = await getDocs(q);
-      
+
       // If we're updating, exclude the current customer
       if (excludeId) {
         return querySnapshot.docs.some(doc => doc.id !== excludeId);
       }
-      
+
       return !querySnapshot.empty;
     } catch (error) {
       console.error('Error checking email existence:', error);
@@ -57,7 +57,7 @@ class FirebaseService {
   // Clean customer data by removing undefined values and converting to Firestore-compatible format
   private cleanCustomerData(data: CustomerData): any {
     const cleaned: any = {};
-    
+
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         // Handle arrays (like purchase_history)
@@ -79,38 +79,34 @@ class FirebaseService {
         }
       }
     });
-    
+
     return cleaned;
   }
 
   // Create a new customer
   async createCustomer(customerData: CustomerData): Promise<FirebaseApiResponse<FirebaseCustomerData>> {
     try {
-      // Check if email already exists
-      if (customerData.email_address) {
-        const emailExists = await this.checkEmailExists(customerData.email_address);
-        if (emailExists) {
-          return {
-            error: 'Email address already exists',
-            field: 'email_address',
-            message: 'A customer with this email address already exists. Please use a different email or leave it empty.'
-          };
-        }
-      }
-      
-      // Filter out undefined values and convert to Firestore-compatible data
-      const cleanData = this.cleanCustomerData(customerData);
-      
-      const docRef = await addDoc(collection(db, this.collectionName), {
-        ...cleanData,
-        created_at: Timestamp.now(),
-        updated_at: Timestamp.now()
+      // Use API endpoint instead of direct Firebase write
+      const response = await fetch('http://localhost:3000/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData),
       });
 
-      const newCustomer = await getDoc(docRef);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.error || 'Failed to create customer',
+          message: data.error || 'Failed to create customer'
+        };
+      }
+
       return {
-        data: newCustomer.data() as FirebaseCustomerData,
-        id: docRef.id
+        data: data,
+        id: data.id
       };
     } catch (error) {
       console.error('Error creating customer:', error);
@@ -125,7 +121,7 @@ class FirebaseService {
     try {
       const q = query(collection(db, this.collectionName), orderBy('created_at', 'desc'));
       const querySnapshot = await getDocs(q);
-      
+
       const customers: FirebaseCustomerData[] = [];
       querySnapshot.forEach((doc) => {
         customers.push({
@@ -181,19 +177,27 @@ class FirebaseService {
           };
         }
       }
-      
-      const docRef = doc(db, this.collectionName, id);
-      await updateDoc(docRef, {
-        ...customerData,
-        updated_at: Timestamp.now()
+
+      // Use API endpoint instead of direct Firebase write
+      const response = await fetch(`http://localhost:3000/customers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData),
       });
 
-      const updatedDoc = await getDoc(docRef);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.error || 'Failed to update customer',
+          message: data.error || 'Failed to update customer'
+        };
+      }
+
       return {
-        data: {
-          id: updatedDoc.id,
-          ...updatedDoc.data()
-        } as FirebaseCustomerData
+        data: data
       };
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -206,7 +210,18 @@ class FirebaseService {
   // Delete a customer
   async deleteCustomer(id: string): Promise<FirebaseApiResponse<void>> {
     try {
-      await deleteDoc(doc(db, this.collectionName, id));
+      // Use API endpoint instead of direct Firebase write
+      const response = await fetch(`http://localhost:3000/customers/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        return {
+          error: data.error || 'Failed to delete customer'
+        };
+      }
+
       return { data: undefined };
     } catch (error) {
       console.error('Error deleting customer:', error);
@@ -222,10 +237,13 @@ class FirebaseService {
       if (!email) {
         return { data: { available: true } };
       }
-      
-      const emailExists = await this.checkEmailExists(email);
+
+      // Use API endpoint instead of direct Firebase query
+      const response = await fetch(`http://localhost:3000/customers/email/check/${encodeURIComponent(email)}`);
+      const data = await response.json();
+
       return {
-        data: { available: !emailExists }
+        data: { available: data.available }
       };
     } catch (error) {
       console.error('Error checking email availability:', error);
@@ -240,7 +258,7 @@ class FirebaseService {
     try {
       const q = query(collection(db, this.collectionName), orderBy('created_at', 'desc'));
       const querySnapshot = await getDocs(q);
-      
+
       const customers: FirebaseCustomerData[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();

@@ -55,11 +55,11 @@ export default function EditCustomerPage() {
       if (!id) return;
 
       try {
-        const docRef = doc(db, 'customers', id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setCustomer(docSnap.data() as CustomerData);
+        // Use API endpoint instead of direct Firebase query
+        const response = await fetch(`http://localhost:3000/customers/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCustomer(data as CustomerData);
         }
       } catch (error) {
         console.error('Error fetching customer:', error);
@@ -76,8 +76,6 @@ export default function EditCustomerPage() {
 
     setSaving(true);
     try {
-      const docRef = doc(db, 'customers', id);
-
       // Ensure both contact_number and phone are updated for consistency
       const updateData = {
         ...customer,
@@ -104,7 +102,18 @@ export default function EditCustomerPage() {
         updateData.budget = customer.budget_mentioned;
       }
 
-      await updateDoc(docRef, updateData);
+      // Use API endpoint instead of direct Firebase write
+      const response = await fetch(`http://localhost:3000/customers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update customer');
+      }
 
       navigate('/');
     } catch (error) {

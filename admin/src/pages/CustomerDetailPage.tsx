@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { 
-  FiArrowLeft, 
-  FiEdit3, 
-  FiUser, 
-  FiMail, 
-  FiPhone, 
-  FiMapPin, 
+import {
+  FiArrowLeft,
+  FiEdit3,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiMapPin,
   FiCalendar,
   FiHeart,
   FiShoppingBag,
   FiRefreshCw,
-  FiInfo
+  FiInfo,
+  FiTrash2
 } from 'react-icons/fi';
 
 export default function CustomerDetailPage() {
@@ -22,37 +23,34 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  // Real-time data fetching with Firestore listener
+  // Fetch customer data via API
   useEffect(() => {
     if (!id) return;
 
-    console.log('Setting up real-time listener for customer:', id);
-    setLoading(true);
-    const customerRef = doc(db, 'customers', id);
-    
-    // Set up real-time listener
-    const unsubscribe = onSnapshot(customerRef, (docSnapshot) => {
-      console.log('Firestore snapshot received:', docSnapshot.exists());
-      if (docSnapshot.exists()) {
-        const customerData = { id: docSnapshot.id, ...docSnapshot.data() };
-        console.log('Customer data updated:', customerData);
-        setCustomer(customerData);
-      } else {
-        console.log('Customer document does not exist');
+    const fetchCustomer = async () => {
+      console.log('Fetching customer via API:', id);
+      setLoading(true);
+      try {
+        const response = await fetch(`http://localhost:3000/customers/${id}`);
+        if (response.ok) {
+          const customerData = await response.json();
+          console.log('Customer data loaded:', customerData);
+          setCustomer(customerData);
+        } else {
+          console.log('Customer not found');
+          setCustomer(null);
+        }
+      } catch (error) {
+        console.error('Error fetching customer:', error);
         setCustomer(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, (error) => {
-      console.error('Error in Firestore listener:', error);
-      setLoading(false);
-    });
-
-    // Cleanup listener on unmount
-    return () => {
-      console.log('Cleaning up Firestore listener');
-      unsubscribe();
     };
+
+    fetchCustomer();
   }, [id]);
 
   // Add visibility change listener to refresh when user returns to tab
@@ -83,14 +81,14 @@ export default function CustomerDetailPage() {
   // Manual refresh function
   const handleRefresh = async () => {
     if (!id) return;
-    
+
     console.log('Manual refresh triggered for customer:', id);
     setRefreshing(true);
     try {
-      const customerRef = doc(db, 'customers', id);
-      const snap = await getDoc(customerRef);
-      if (snap.exists()) {
-        const freshData = { id: snap.id, ...snap.data() };
+      // Use API endpoint instead of direct Firebase query
+      const response = await fetch(`http://localhost:3000/customers/${id}`);
+      if (response.ok) {
+        const freshData = await response.json();
         console.log('Fresh data fetched:', freshData);
         setCustomer(freshData);
       } else {
@@ -101,6 +99,41 @@ export default function CustomerDetailPage() {
       console.error('Error refreshing customer:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  // Delete customer function
+  const handleDelete = async () => {
+    if (!id || !customer) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete ${customer.full_name || customer.name || 'this customer'}?\n\n` +
+      `This will:\n` +
+      `✓ Delete from Firebase immediately\n` +
+      `✓ Delete from Odoo CRM when you click "Sync to Odoo"\n\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`http://localhost:3000/customers/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('✅ Customer deleted successfully!\n\nRemember to click "Sync to Odoo" to remove from CRM.');
+        navigate('/');
+      } else {
+        const error = await response.json();
+        alert('❌ Failed to delete customer: ' + (error.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      alert('❌ Failed to delete customer: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -166,7 +199,7 @@ export default function CustomerDetailPage() {
                 <p className="text-gray-500">View and manage customer information</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
@@ -182,6 +215,23 @@ export default function CustomerDetailPage() {
               >
                 <FiEdit3 className="w-4 h-4" />
                 Edit Customer
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <FiTrash2 className="w-4 h-4" />
+                    Delete
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -23,4 +23,10 @@ router.delete('/:id', OdooSyncMiddleware.create(), customerController.deleteCust
 // GET check email availability
 router.get('/email/check/:email', customerController.checkEmailAvailability);
 
+// POST sync single customer to Odoo (manual trigger)
+router.post('/:id/sync-odoo', customerController.syncToOdoo);
+
+// POST sync all customers to Odoo (manual trigger)
+router.post('/sync-all-odoo', customerController.syncAllToOdoo);
+
 export default router;

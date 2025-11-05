@@ -23,11 +23,16 @@ export default function CustomerDetailModal() {
   useEffect(() => {
     async function fetchCustomer() {
       setLoading(true);
-      const ref = doc(db, 'customers', id!);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        setCustomer({ id: snap.id, ...snap.data() } as Customer);
-        setForm(snap.data() as Partial<Customer>);
+      try {
+        // Use API endpoint instead of direct Firebase query
+        const response = await fetch(`http://localhost:3000/customers/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCustomer(data as Customer);
+          setForm(data as Partial<Customer>);
+        }
+      } catch (error) {
+        console.error('Error fetching customer:', error);
       }
       setLoading(false);
     }
@@ -41,16 +46,29 @@ export default function CustomerDetailModal() {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    const ref = doc(db, 'customers', id);
-    await updateDoc(ref, {
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      purchases: Number(form.purchases) || 0,
-    });
-    setEditMode(false);
+    try {
+      // Use API endpoint instead of direct Firebase write
+      const response = await fetch(`http://localhost:3000/customers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          purchases: Number(form.purchases) || 0,
+        }),
+      });
+      
+      if (response.ok) {
+        setEditMode(false);
+        setCustomer({ id, ...form } as Customer);
+      }
+    } catch (error) {
+      console.error('Error updating customer:', error);
+    }
     setSaving(false);
-    setCustomer({ id, ...form } as Customer);
   };
 
   if (loading) return (
